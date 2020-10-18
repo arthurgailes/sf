@@ -51,7 +51,7 @@ set_utf8 = function(x) {
 #'   of LineString and MultiLineString, or of Polygon and MultiPolygon, convert
 #'   all to the Multi variety; defaults to \code{TRUE}
 #' @param stringsAsFactors logical; logical: should character vectors be
-#'   converted to factors?  Default for \code{read_sf} or R version >= 4.1.0 is 
+#'   converted to factors?  Default for \code{read_sf} or R version >= 4.1.0 is
 #' \code{FALSE}, for \code{st_read} and R version < 4.1.0 equal to
 #' \code{default.stringsAsFactors()}
 #' @param int64_as_string logical; if TRUE, Int64 attributes are returned as
@@ -135,13 +135,24 @@ st_read.default = function(dsn, layer, ...) {
 		tr <- try(dsn <- as.character(dsn))
 		if (dsn_is_null || inherits(tr, "try-error"))
 			stop(paste("no st_read method available for objects of class", paste(class_dsn, collapse = ", ")))
-		else
+
+		else{
+			# extract zip file to temporary if needed
+			dsn_is_zip = grepl("\\.zip$", dsn)
+			if (dsn_is_zip){
+				tmp <- paste0(tempdir(),"/shp")
+				unzip(dsn, exdir = tmp)
+				dsn <- tmp
+			}
 			st_read.character(dsn, layer, ...)
+			# delete zip directory if created
+			if (dsn_is_zip) unlink(tmp, recursive = T)
+		}
 	}
 }
 
 process_cpl_read_ogr = function(x, quiet = FALSE, ..., check_ring_dir = FALSE,
-		stringsAsFactors = ifelse(as_tibble, FALSE, sf_stringsAsFactors()), 
+		stringsAsFactors = ifelse(as_tibble, FALSE, sf_stringsAsFactors()),
 		geometry_column = 1, as_tibble = FALSE) {
 
 	which.geom = which(vapply(x, function(f) inherits(f, "sfc"), TRUE))
@@ -151,7 +162,7 @@ process_cpl_read_ogr = function(x, quiet = FALSE, ..., check_ring_dir = FALSE,
 
 	# in case no geometry is present:
 	if (length(which.geom) == 0) {
-		if (! quiet) 
+		if (! quiet)
 			warning("no simple feature geometries present: returning a data.frame or tbl_df", call. = FALSE)
 		x = if (!as_tibble) {
 				if (any(sapply(x, is.list)))
@@ -207,7 +218,7 @@ process_cpl_read_ogr = function(x, quiet = FALSE, ..., check_ring_dir = FALSE,
 #' to the current working directory (see \link{getwd}). "Shapefiles" consist of several files with the same basename
 #' that reside in the same directory, only one of them having extension \code{.shp}.
 #' @export
-st_read.character = function(dsn, layer, ..., query = NA, options = NULL, quiet = FALSE, geometry_column = 1L, 
+st_read.character = function(dsn, layer, ..., query = NA, options = NULL, quiet = FALSE, geometry_column = 1L,
 		type = 0, promote_to_multi = TRUE, stringsAsFactors = sf_stringsAsFactors(),
 		int64_as_string = FALSE, check_ring_dir = FALSE, fid_column_name = character(0),
 		drivers = character(0), wkt_filter = character(0)) {
